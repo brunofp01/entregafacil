@@ -11,7 +11,6 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  // Se as chaves não existirem, ignora a proteção para não travar o site (Erro 500)
   if (!supabaseUrl || !supabaseAnonKey) {
     return response;
   }
@@ -65,13 +64,40 @@ export async function middleware(request: NextRequest) {
 
     const { data: { user } } = await supabase.auth.getUser();
 
-    // Protect routes starting with /dashboard, /contracts, /inspections
+    const pathname = request.nextUrl.pathname;
+
+    // 1. Protection for Login page (if already logged in)
+    if (pathname === '/login' && user) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+
+    // 2. Protection for standard user routes
     const protectedRoutes = ['/dashboard', '/contracts', '/inspections'];
-    const isProtectedRoute = protectedRoutes.some(route => request.nextUrl.pathname.startsWith(route));
+    const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
 
     if (isProtectedRoute && !user) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
+
+    // 3. RBAC - Protection for Agency and Admin routes
+    if (user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+      
+      const role = profile?.role || 'tenant';
+
+      if (pathname.startsWith('/agency') && role !== 'agency' && role !== 'admin') {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
+
+      if (pathname.startsWith('/admin') && role !== 'admin') {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
+    }
+
   } catch (err) {
     console.error('Middleware Error:', err);
   }

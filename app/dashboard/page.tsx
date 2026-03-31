@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useUser } from '@/lib/context/UserContext';
+import { getTenantContract, requestVacancyInspection } from '@/lib/supabase/queries';
 import { createBrowserClient } from '@/lib/supabase/client';
 import { 
   ShieldCheck, 
@@ -10,64 +12,35 @@ import {
   CheckCircle, 
   Calendar, 
   ArrowRight,
-  TrendingUp,
-  DollarSign,
-  ClipboardCheck,
-  AlertCircle,
-  Users,
-  FileText,
-  Camera,
-  LayoutGrid,
   MapPin,
   X,
   Info
 } from 'lucide-react';
-import { getUserProfile, getTenantContract } from '@/lib/supabase/queries';
 
 export default function Dashboard() {
-  const [role, setRole] = useState<'tenant' | 'agency'>('tenant');
-  const [loading, setLoading] = useState(true);
+  const { user, profile, loading: userLoading, role } = useUser();
   const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [isVacancyFlowOpen, setIsVacancyFlowOpen] = useState(false);
   const [vacancyStep, setVacancyStep] = useState(1);
-
-  // Mock data for development when Supabase is not seeded
-  const mockData = {
-    profile: { full_name: 'Bruno Pereira' },
-    contract: {
-      months_paid: 12,
-      total_months: 30,
-      monthly_fee: 250,
-      properties: {
-        address: 'Ed. Horizonte, 402 - Lourdes, BH',
-        finish_standard: 'standard'
-      }
-    }
-  };
+  const supabase = createBrowserClient();
 
   useEffect(() => {
     async function fetchData() {
-      try {
-        // In a real app, we would get the ID from the auth session
-        // const profile = await getUserProfile('some-uuid');
-        // const contract = await getTenantContract('some-uuid');
-        // setData({ profile, contract });
-        
-        // Simulating fetch delay
-        setTimeout(() => {
-          setData(mockData);
-          setLoading(false);
-        }, 800);
-      } catch (error) {
-        console.error("Error fetching dashboard data:", error);
-        setData(mockData);
-        setLoading(false);
+      if (user && role === 'tenant') {
+        try {
+          const contract = await getTenantContract(user.id);
+          setData({ profile, contract });
+        } catch (error) {
+          console.error("Error fetching dashboard data:", error);
+        }
       }
+      setLoading(userLoading);
     }
     fetchData();
-  }, []);
+  }, [user, profile, userLoading, role]);
 
-  if (loading) {
+  if (loading || userLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
         <div className="w-12 h-12 border-4 border-slate-100 border-t-[#1A365D] rounded-full animate-spin"></div>
@@ -76,7 +49,22 @@ export default function Dashboard() {
     );
   }
 
-  if (role === 'tenant') {
+  if (!data?.contract && role === 'tenant') {
+    return (
+      <div className="max-w-md mx-auto text-center space-y-6 pt-12">
+        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400">
+          <ShieldCheck className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-800">Nenhum contrato ativo</h2>
+        <p className="text-slate-500 font-medium">Você ainda não possui proteção ativa vinculada a este e-mail. Caso deseje contratar, use nosso simulador.</p>
+        <Link href="/simulate" className="inline-block bg-[#1A365D] text-white px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-xs">
+          Ir para Simulador
+        </Link>
+      </div>
+    );
+  }
+
+  if (role === 'tenant' && data?.contract) {
     const { contract, profile } = data;
     const progress = (contract.months_paid / contract.total_months) * 100;
 
@@ -85,7 +73,7 @@ export default function Dashboard() {
         {/* Header */}
         <header className="flex justify-between items-center py-4">
           <div>
-            <h1 className="text-2xl font-extrabold text-[#1A365D]">Olá, {profile.full_name.split(' ')[0]}</h1>
+            <h1 className="text-2xl font-extrabold text-[#1A365D]">Olá, {profile.full_name?.split(' ')[0] || 'Usuário'}</h1>
             <p className="text-slate-500 text-sm">Resumo da sua proteção.</p>
           </div>
           <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-xs font-bold border border-emerald-100 flex items-center gap-1">
@@ -152,7 +140,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Secondary Info */}
+        {/* Next Invoice */}
         <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-soft">
           <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4">
             <Calendar className="w-4 h-4 text-[#1A365D]" /> Próxima Fatura
@@ -169,17 +157,19 @@ export default function Dashboard() {
         </div>
 
         {/* Sticky Bottom CTA */}
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-xl border-t border-slate-100 z-50">
-          <button 
-            onClick={() => setIsVacancyFlowOpen(true)}
-            className="w-full bg-[#1A365D] text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-blue-900/30 active:scale-95 transition-all"
-          >
-            Solicitar Desocupação Facilitada
-            <ArrowRight className="w-5 h-5" />
-          </button>
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-xl border-t border-slate-100 z-50 flex justify-center">
+            <div className="max-w-md w-full">
+            <button 
+                onClick={() => setIsVacancyFlowOpen(true)}
+                className="w-full bg-[#1A365D] text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-blue-900/30 active:scale-95 transition-all"
+            >
+                Solicitar Desocupação Facilitada
+                <ArrowRight className="w-5 h-5" />
+            </button>
+            </div>
         </div>
 
-        {/* Vacancy Flow Modal/Overlay */}
+        {/* Vacancy Flow Modal/Overlay - Step 3 should submit to DB */}
         {isVacancyFlowOpen && (
           <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
             <div className="bg-white w-full max-w-lg rounded-4xl shadow-spatial overflow-hidden animate-count">
@@ -242,7 +232,15 @@ export default function Dashboard() {
                     <div className="flex gap-4">
                       <button onClick={() => setVacancyStep(1)} className="flex-1 py-4 text-slate-400 font-bold uppercase text-xs tracking-widest">Voltar</button>
                       <button 
-                        onClick={() => setVacancyStep(3)}
+                        onClick={async () => {
+                          try {
+                            await requestVacancyInspection(data.contract.id);
+                            setVacancyStep(3);
+                          } catch (error) {
+                            console.error("Error requesting vacancy:", error);
+                            alert("Erro ao solicitar desocupação. Tente novamente.");
+                          }
+                        }}
                         className="flex-[2] bg-[#1A365D] text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-blue-900/20"
                       >
                         Finalizar Pedido
@@ -281,105 +279,5 @@ export default function Dashboard() {
     );
   }
 
-  // Agency Role (B2B Desktop Oriented)
-  return (
-    <div className="flex h-[calc(100vh-120px)] gap-6 animate-count">
-      {/* Sidebar (Next.js Desktop version) */}
-      <aside className="w-64 flex flex-col gap-2 shrink-0 hidden lg:flex">
-        <button className="flex items-center gap-3 px-4 py-3 bg-[#1A365D]/5 text-[#1A365D] rounded-2xl font-bold transition-all text-left">
-          <LayoutGrid className="w-5 h-5" /> Visão Geral
-        </button>
-        <button className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-[#1A365D] transition-all font-semibold text-left">
-          <FileText className="w-5 h-5" /> Contratos Cobertos
-        </button>
-        <Link href="/inspections" className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-[#1A365D] transition-all font-semibold text-left">
-          <Camera className="w-5 h-5" /> Vistorias
-        </Link>
-        <button className="flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-[#1A365D] transition-all font-semibold text-left">
-          <AlertCircle className="w-5 h-5" /> Inadimplência
-        </button>
-        
-        <div className="mt-auto p-4 bg-slate-50 border border-slate-100 rounded-3xl">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Suporte B2B</p>
-          <p className="text-xs text-slate-600 font-medium">Contate seu gerente de conta.</p>
-          <button className="mt-3 w-full text-[10px] font-bold bg-white border border-slate-200 py-2 rounded-xl text-slate-800 uppercase tracking-widest hover:border-[#1A365D] transition-colors">Abrir Chamado</button>
-        </div>
-      </aside>
-
-      {/* Content Area */}
-      <div className="flex-1 overflow-y-auto pr-4 space-y-6">
-        <header className="flex justify-between items-end">
-          <div>
-            <h1 className="text-3xl font-black text-slate-900 leading-none">Painel Imobiliária</h1>
-            <p className="text-slate-500 font-medium mt-2">Gestão consolidada do fundo de reparos.</p>
-          </div>
-          <button className="bg-white border border-slate-200 px-4 py-2 rounded-xl text-sm font-bold text-slate-700 hover:border-[#1A365D] transition-all">
-            Baixar Relatório (PDF)
-          </button>
-        </header>
-
-        {/* Metrics Grid */}
-        <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-soft">
-            <Users className="w-6 h-6 text-[#1A365D] mb-3" />
-            <p className="text-sm font-medium text-slate-500">Contratos</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">124</p>
-            <p className="text-[10px] text-emerald-500 font-bold mt-2 flex items-center gap-1">
-              <TrendingUp className="w-2 h-2" /> +12%
-            </p>
-          </div>
-          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-soft">
-            <DollarSign className="w-6 h-6 text-emerald-500 mb-3" />
-            <p className="text-sm font-medium text-slate-500">Fundo Reserva</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">R$ 31k</p>
-            <p className="text-[10px] text-slate-400 font-medium mt-2">Disponível p/ Reparos</p>
-          </div>
-          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-soft">
-            <ClipboardCheck className="w-6 h-6 text-amber-500 mb-3" />
-            <p className="text-sm font-medium text-slate-500">Vistorias/Sem</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">08</p>
-            <p className="text-[10px] text-slate-400 font-medium mt-2">Próximos 5 dias</p>
-          </div>
-          <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-soft">
-            <AlertCircle className="w-6 h-6 text-rose-500 mb-3" />
-            <p className="text-sm font-medium text-slate-500">Inadimplência</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">4.2%</p>
-            <p className="text-[10px] text-emerald-500 font-bold mt-2 flex items-center gap-1">
-              -0.5% vs Fev
-            </p>
-          </div>
-        </div>
-
-        {/* Contract Table */}
-        <div className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-soft">
-          <div className="p-6 border-b border-slate-50 flex justify-between items-center">
-            <h3 className="font-bold text-slate-800">Contratos Recentes</h3>
-            <span className="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-[10px] font-bold uppercase">96% em dia</span>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead className="bg-slate-50/50">
-                <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  <th className="px-6 py-4">Inquilino</th>
-                  <th>Imóvel</th>
-                  <th>Pagamento</th>
-                  <th className="pr-6 text-right">Ação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                <tr className="group hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4 font-bold text-slate-800">Ana Maria</td>
-                  <td className="text-sm font-medium text-slate-500 italic">Rua das Flores, 123</td>
-                  <td><span className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black border border-emerald-100">PAGO</span></td>
-                  <td className="pr-6 text-right">
-                    <button className="text-xs font-bold text-[#1A365D] opacity-0 group-hover:opacity-100 transition-opacity">Ver Contrato</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return null;
 }

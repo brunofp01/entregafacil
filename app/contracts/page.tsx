@@ -1,5 +1,9 @@
 'use client';
 
+import { useState, useEffect } from 'react';
+import { useUser } from '@/lib/context/UserContext';
+import { getTenantContract } from '@/lib/supabase/queries';
+import { createBrowserClient } from '@/lib/supabase/client';
 import { 
   FileText, 
   Download, 
@@ -11,13 +15,54 @@ import {
 } from 'lucide-react';
 
 export default function ContractsPage() {
+  const { user, profile, loading: userLoading, role } = useUser();
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [inspectionsRaw, setInspectionsRaw] = useState<any[]>([]);
+  const supabase = createBrowserClient();
+
+  useEffect(() => {
+    async function fetchData() {
+      if (user && role === 'tenant' && supabase) {
+        try {
+          const contract = await getTenantContract(user.id);
+          setData(contract);
+
+          // Fetch inspections for this contract
+          if (contract?.id) {
+            const { data: inspData } = await supabase
+              .from('inspections')
+              .select('*')
+              .eq('contract_id', contract.id)
+              .order('created_at', { ascending: false });
+            
+            setInspectionsRaw(inspData || []);
+          }
+        } catch (error) {
+          console.error("Error fetching contracts page data:", error);
+        }
+      }
+      setLoading(userLoading);
+    }
+    fetchData();
+  }, [user, userLoading, role, supabase]);
+
+  if (loading || userLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+        <div className="w-12 h-12 border-4 border-slate-100 border-t-[#1A365D] rounded-full animate-spin"></div>
+        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Carregando documentos...</p>
+      </div>
+    );
+  }
+
   const documents = [
     {
       id: 1,
       title: 'Termo de Cobertura All-Inclusive',
       description: 'Detalhamento jurídico de todos os reparos inclusos no seu pacote.',
       type: 'PDF',
-      updatedAt: '12 Jan 2026',
+      updatedAt: 'Mar 2026',
       icon: <FileText className="w-6 h-6 text-[#1A365D]" />,
       iconBg: 'bg-blue-50'
     },
@@ -26,32 +71,9 @@ export default function ContractsPage() {
       title: 'Contrato de Locação',
       description: 'Cópia digital do seu contrato de locação principal com a imobiliária.',
       type: 'PDF',
-      updatedAt: '10 Jan 2026',
+      updatedAt: 'Mar 2026',
       icon: <FileText className="w-6 h-6 text-slate-400" />,
       iconBg: 'bg-slate-50'
-    }
-  ];
-
-  const inspections = [
-    {
-      id: 1,
-      type: 'Vistoria de Entrada',
-      date: '12/01/2026',
-      photos: 84,
-      status: 'Concluída',
-      notes: 'Imóvel em perfeitas condições conforme laudo.',
-      icon: <Camera className="w-6 h-6 text-emerald-500" />,
-      iconBg: 'bg-emerald-50'
-    },
-    {
-      id: 2,
-      type: 'Vistoria de Saída',
-      date: 'Aguardando',
-      photos: 0,
-      status: 'Pendente',
-      notes: 'Agendamento disponível após 24 meses de contrato.',
-      icon: <Clock className="w-6 h-6 text-amber-500" />,
-      iconBg: 'bg-amber-50'
     }
   ];
 
@@ -101,47 +123,45 @@ export default function ContractsPage() {
           </button>
         </div>
         <div className="space-y-4">
-          {inspections.map((insp) => (
-            <div key={insp.id} className="bg-white border border-slate-100 rounded-3xl p-6 shadow-soft flex flex-col md:flex-row md:items-center justify-between gap-6 group hover:border-[#1A365D]/30 transition-all">
-              <div className="flex items-center gap-6">
-                <div className={`w-14 h-14 ${insp.iconBg} rounded-2xl flex items-center justify-center shrink-0`}>
-                  {insp.icon}
+          {inspectionsRaw.length > 0 ? (
+            inspectionsRaw.map((insp) => (
+                <div key={insp.id} className="bg-white border border-slate-100 rounded-3xl p-6 shadow-soft flex flex-col md:flex-row md:items-center justify-between gap-6 group hover:border-[#1A365D]/30 transition-all">
+                <div className="flex items-center gap-6">
+                    <div className={`w-14 h-14 ${insp.type === 'entrada' ? 'bg-emerald-50' : 'bg-blue-50'} rounded-2xl flex items-center justify-center shrink-0`}>
+                    <Camera className={`w-6 h-6 ${insp.type === 'entrada' ? 'text-emerald-500' : 'text-blue-500'}`} />
+                    </div>
+                    <div>
+                    <h3 className="text-lg font-bold text-slate-800 leading-none capitalize">Vistoria de {insp.type}</h3>
+                    <div className="flex flex-wrap gap-2 mt-3">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">
+                        {new Date(insp.created_at).toLocaleDateString('pt-BR')}
+                        </span>
+                        {insp.photo_urls?.length > 0 && (
+                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+                            {insp.photo_urls.length} FOTOS PROFISSIONAIS
+                        </span>
+                        )}
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border text-blue-600 bg-blue-50 border-blue-100">
+                        CONCLUÍDA
+                        </span>
+                    </div>
+                    </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-slate-800 leading-none">{insp.type}</h3>
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">{insp.date}</span>
-                    {insp.photos > 0 && (
-                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-                        {insp.photos} FOTOS PROFISSIONAIS
-                      </span>
-                    )}
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                      insp.status === 'Concluída' 
-                        ? 'text-blue-600 bg-blue-50 border-blue-100' 
-                        : 'text-amber-600 bg-amber-50 border-amber-100'
-                    }`}>
-                      {insp.status.toUpperCase()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col md:items-end gap-2 shrink-0">
-                {insp.status === 'Concluída' ? (
-                  <button className="bg-slate-900 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#1A365D] transition-all shadow-lg shadow-black/10">
+                <div className="flex flex-col md:items-end gap-2 shrink-0">
+                    <button className="bg-slate-900 text-white px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[#1A365D] transition-all shadow-lg shadow-black/10">
                     Acessar Galeria <ExternalLink className="w-3 h-3" />
-                  </button>
-                ) : (
-                  <button className="bg-slate-50 text-slate-400 px-8 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest cursor-not-allowed">
-                    Indisponível
-                  </button>
-                )}
-                <p className="text-[10px] text-slate-400 font-medium italic text-right max-w-[200px]">
-                  {insp.notes}
-                </p>
-              </div>
+                    </button>
+                    <p className="text-[10px] text-slate-400 font-medium italic text-right max-w-[200px]">
+                    {insp.notes || 'Nenhuma observação técnica.'}
+                    </p>
+                </div>
+                </div>
+            ))
+          ) : (
+            <div className="bg-slate-50 border border-dashed border-slate-200 rounded-3xl p-12 text-center">
+              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Nenhuma vistoria registrada.</p>
             </div>
-          ))}
+          )}
         </div>
       </section>
 

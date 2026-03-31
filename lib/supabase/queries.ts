@@ -27,6 +27,21 @@ export const getUserProfile = async (userId: string) => {
     return data;
 };
 
+// Utility to get current user Role
+export const getUserRole = async (userId: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return 'tenant';
+
+    const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .single();
+    
+    if (error) return 'tenant';
+    return data.role as 'tenant' | 'agency' | 'admin';
+};
+
 // Utility to get Property and Contract for a Tenant
 export const getTenantContract = async (tenantId: string) => {
     const supabase = getSupabase();
@@ -43,4 +58,26 @@ export const getTenantContract = async (tenantId: string) => {
 
     if (error) throw error;
     return data;
+};
+
+// Utility to create a vacancy inspection request
+export const requestVacancyInspection = async (contractId: string, notes: string = '') => {
+  const supabase = getSupabase();
+  if (!supabase) return null;
+
+  const { data, error } = await supabase
+    .from('inspections')
+    .insert([
+      { 
+        contract_id: contractId,
+        type: 'saida',
+        notes: notes || 'Solicitação de desocupação via dashboard.',
+        photo_urls: []
+      }
+    ])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 };
