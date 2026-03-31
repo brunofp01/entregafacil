@@ -57,11 +57,35 @@ export default function Dashboard() {
     fetchData();
   }, [user, profile, userLoading, role, router]);
 
-  if (loading || userLoading || (user && !role)) {
+  if (loading || userLoading) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
         <div className="w-12 h-12 border-4 border-slate-100 border-t-[#1A365D] rounded-full animate-spin"></div>
         <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Sincronizando seu perfil...</p>
+      </div>
+    );
+  }
+
+  // Safety break: If loaded but no role, the user might not have its profile correctly setup
+  if (!role && !userLoading) {
+    return (
+      <div className="max-w-md mx-auto py-12 px-6 text-center space-y-6">
+        <div className="w-16 h-16 bg-rose-50 rounded-full flex items-center justify-center mx-auto text-rose-500">
+          <Info className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-slate-800">Acesso Restrito</h2>
+        <p className="text-slate-500 font-medium tracking-tight">
+          Não conseguimos identificar sua permissão de acesso. Verifique se seu Perfil foi criado no banco de dados.
+        </p>
+        <button 
+          onClick={async () => {
+            const { signOut } = (await import('@/lib/context/UserContext')).useUser();
+            // ... wait, better use the context directly or a simple link
+          }}
+          className="inline-block bg-[#1A365D] text-white px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-xs"
+        >
+          <Link href="/login">Voltar ao Login</Link>
+        </button>
       </div>
     );
   }

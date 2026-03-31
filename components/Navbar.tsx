@@ -7,16 +7,12 @@ import { createBrowserClient } from '@/lib/supabase/client';
 
 export default function Navbar() {
   const pathname = usePathname();
-  const { user, profile, loading, role } = useUser();
-  const supabase = createBrowserClient();
+  const { user, profile, loading, role, signOut } = useUser();
 
   const isActive = (path: string) => pathname === path;
 
   const handleSignOut = async () => {
-    if (supabase) {
-      await supabase.auth.signOut();
-      window.location.href = '/login';
-    }
+    await signOut();
   };
 
   const navLinks = {
@@ -59,7 +55,7 @@ export default function Navbar() {
         </Link>
         
         {/* Desktop Nav */}
-        {user && (
+        {user && role && (
           <div className="hidden md:flex gap-8">
             {activeLinks.map((link) => (
               <Link 
@@ -78,12 +74,20 @@ export default function Navbar() {
         <div className="flex items-center gap-4">
           {user ? (
             <>
-              <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-full">
-                <div className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></div>
-                <span className="text-xs font-bold text-slate-600 capitalize">{role === 'agency' ? 'Imobiliária' : role === 'admin' ? 'Admin' : 'Inquilino'}</span>
-              </div>
-              <button onClick={handleSignOut} className="p-2 text-slate-400 hover:text-rose-500 transition-colors tooltip" title="Sair">
-                <LogOut className="w-5 h-5" />
+              {role && (
+                <div className="hidden sm:flex items-center gap-3 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-full">
+                  <div className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></div>
+                  <span className="text-xs font-bold text-slate-600 capitalize">
+                    {role === 'agency' ? 'Imobiliária' : role === 'admin' ? 'Admin' : 'Inquilino'}
+                  </span>
+                </div>
+              )}
+              <button 
+                onClick={handleSignOut} 
+                className="flex items-center gap-2 p-3 bg-rose-50 text-rose-500 hover:bg-rose-100 rounded-2xl transition-all font-black text-[10px] uppercase tracking-widest"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Sair</span>
               </button>
             </>
           ) : (

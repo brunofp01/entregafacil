@@ -9,6 +9,7 @@ type UserContextType = {
   profile: any;
   loading: boolean;
   role: 'tenant' | 'agency' | 'admin' | null;
+  signOut: () => Promise<void>;
 };
 
 const UserContext = createContext<UserContextType>({
@@ -16,6 +17,7 @@ const UserContext = createContext<UserContextType>({
   profile: null,
   loading: true,
   role: null,
+  signOut: async () => {},
 });
 
 export const UserProvider = ({ children }: { children: React.ReactNode }) => {
@@ -78,8 +80,17 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     return () => subscription.unsubscribe();
   }, [supabase]);
 
+  const signOut = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+      setUser(null);
+      setProfile(null);
+      window.location.href = '/login';
+    }
+  };
+
   return (
-    <UserContext.Provider value={{ user, profile, loading, role: profile?.role || null }}>
+    <UserContext.Provider value={{ user, profile, loading, role: profile?.role || null, signOut }}>
       {children}
     </UserContext.Provider>
   );
