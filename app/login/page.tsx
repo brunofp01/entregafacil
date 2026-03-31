@@ -25,7 +25,10 @@ export default function LoginPage() {
     setError('');
     
     if (!supabase) {
-      setError('Configuração do servidor incompleta.');
+      const missing = [];
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push('URL');
+      if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) missing.push('Chave Anon');
+      setError(`Configuração incompleta no Vercel: Falta ${missing.join(' e ')}. Adicione nas Settings e faça Redeploy.`);
       setLoading(false);
       return;
     }
