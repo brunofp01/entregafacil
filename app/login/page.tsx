@@ -1,10 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { createBrowserClient } from '@/lib/supabase/client';
 import { KeyRound, Mail, Lock, ArrowRight, ShieldCheck, Building2, UserCog } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, Suspense } from 'react';
 
 function LoginContent() {
   const [email, setEmail] = useState('');
@@ -19,7 +18,7 @@ function LoginContent() {
     const isLogout = searchParams.get('logout') === 'true';
     if (isLogout && supabase) {
       supabase.auth.signOut().then(() => {
-        // Clean refresh if needed, but the param is enough to stop middleware loop
+        // Clean session
       });
     }
   }, [searchParams, supabase]);
@@ -39,10 +38,7 @@ function LoginContent() {
     const finalPassword = customPassword || password || '123456';
 
     if (!supabase) {
-      const missing = [];
-      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push('URL');
-      if (!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) missing.push('Chave Anon');
-      setError(`Configuração incompleta no Vercel: Falta ${missing.join(' e ')}. Adicione nas Settings e faça Redeploy.`);
+      setError('Configuração incompleta no Vercel. Verifique as variáveis de ambiente.');
       setLoading(false);
       return;
     }
@@ -53,10 +49,49 @@ function LoginContent() {
     });
 
     if (error) {
-      setError('Credenciais inválidas. Verifique se o usuário foi criado no Supabase Auth.');
+      setError('Credenciais inválidas. Clique em "Inicializar Ambiente" se for o primeiro acesso.');
       setLoading(false);
     } else {
       router.replace('/dashboard');
+    }
+  };
+
+  const setupTestUsers = async () => {
+    if (!supabase) {
+        setError('Supabase não configurado.');
+        return;
+    }
+    setLoading(true);
+    setError('');
+    const results = [];
+    
+    for (const testUser of testUsers) {
+      const { data, error: signupError } = await supabase.auth.signUp({
+        email: testUser.email,
+        password: '123456',
+        options: {
+          data: { full_name: testUser.label }
+        }
+      });
+      
+      // We upsert the profile even if signup fails (user might already exist)
+      const userId = data.user?.id || (await supabase.from('profiles').select('id').eq('full_name', testUser.label).single()).data?.id;
+      
+      if (userId) {
+        await supabase.from('profiles').upsert({
+          id: userId,
+          full_name: testUser.label,
+          role: testUser.role
+        });
+        results.push(testUser.label);
+      }
+    }
+    
+    setLoading(false);
+    if (results.length > 0) {
+      alert(`Ambiente Pronto! Usuários configurados: ${results.join(', ')}.`);
+    } else {
+      setError('Erro ao inicializar. Verifique se o "Confirm Email" está desativado no Supabase.');
     }
   };
 
@@ -71,13 +106,13 @@ function LoginContent() {
       <div className="p-8 bg-white border border-slate-100 rounded-4xl shadow-spatial space-y-8">
         <header className="text-center space-y-2">
             <div className="w-16 h-16 bg-[#1A365D] rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-900/20">
-            <KeyRound className="w-8 h-8 text-white" />
+              <KeyRound className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">Entrega Facilitada</h1>
             <p className="text-slate-500 font-medium">Acesse seu painel exclusivo.</p>
         </header>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={(e) => handleLogin(e)} className="space-y-4">
             <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1">E-mail</label>
             <div className="relative">
@@ -111,18 +146,17 @@ function LoginContent() {
             {error && <p className="text-xs text-rose-500 font-bold text-center bg-rose-50 p-3 rounded-xl border border-rose-100">{error}</p>}
 
             <button 
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#1A365D] text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-blue-900/20 active:scale-95 transition-all hover:bg-[#1a365df0]"
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#1A365D] text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-3 shadow-xl shadow-blue-900/20 active:scale-95 transition-all hover:bg-[#1a365df0]"
             >
-            {loading ? 'Entrando...' : 'Acessar Painel'}
-            <ArrowRight className="w-5 h-5" />
+              {loading ? 'Processando...' : 'Acessar Painel'}
+              <ArrowRight className="w-5 h-5" />
             </button>
         </form>
 
-        {/* Test Mode Section */}
         <div className="pt-6 border-t border-slate-50 space-y-4">
-            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest text-center">Acesso Rápido para Testes</p>
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest text-center">Modo de Teste</p>
             <div className="grid grid-cols-3 gap-3">
                 {testUsers.map((u) => (
                     <button
@@ -135,12 +169,19 @@ function LoginContent() {
                     </button>
                 ))}
             </div>
+            
+            <button 
+                onClick={setupTestUsers}
+                className="w-full py-3 border-2 border-dashed border-slate-200 rounded-2xl text-[10px] font-black text-slate-400 uppercase tracking-widest hover:border-slate-300 hover:text-slate-500 transition-all"
+            >
+                Inicializar Ambiente de Teste ⚙️
+            </button>
         </div>
 
         <div className="text-center pt-2">
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">
-            Problemas no acesso? <br/>
-            <span className="text-[#1A365D] cursor-pointer hover:underline">Entre em contato com o suporte</span>
+              Problemas no acesso? <br/>
+              <span className="text-[#1A365D] cursor-pointer hover:underline">Falar com Suporte</span>
             </p>
         </div>
       </div>
