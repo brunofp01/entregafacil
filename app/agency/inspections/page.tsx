@@ -14,6 +14,7 @@ import {
   ExternalLink,
   Info
 } from 'lucide-react';
+import Link from 'next/link';
 
 export default function AgencyInspections() {
   const { profile, loading: userLoading } = useUser();
