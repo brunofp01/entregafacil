@@ -30,11 +30,14 @@ function LoginContent() {
     { label: 'Admin', email: 'admin@teste.com', role: 'admin', icon: UserCog },
   ];
 
-  const handleLogin = async (e?: React.FormEvent) => {
+  const handleLogin = async (e?: React.FormEvent, customEmail?: string, customPassword?: string) => {
     e?.preventDefault();
     setLoading(true);
     setError('');
     
+    const finalEmail = customEmail || email;
+    const finalPassword = customPassword || password || '123456';
+
     if (!supabase) {
       const missing = [];
       if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push('URL');
@@ -45,8 +48,8 @@ function LoginContent() {
     }
 
     const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password: password || '123456',
+      email: finalEmail,
+      password: finalPassword,
     });
 
     if (error) {
@@ -60,8 +63,7 @@ function LoginContent() {
   const fillAndLogin = (testEmail: string) => {
     setEmail(testEmail);
     setPassword('123456');
-    // Pequeno delay para percepção visual do preenchimento
-    setTimeout(() => handleLogin(), 100);
+    handleLogin(undefined, testEmail, '123456');
   };
 
   return (
