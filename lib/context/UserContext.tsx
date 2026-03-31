@@ -26,17 +26,29 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const fetchUser = async () => {
-      if (!supabase) return;
+      try {
+        if (!supabase) {
+          setLoading(false);
+          return;
+        }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (session?.user) {
-        setUser(session.user);
-        const userProfile = await getUserProfile(session.user.id);
-        setProfile(userProfile);
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          setUser(session.user);
+          try {
+            const userProfile = await getUserProfile(session.user.id);
+            setProfile(userProfile);
+          } catch (profileErr) {
+            console.error("Profile fetch error (likely table or row missing):", profileErr);
+            // Non-critical: user exists but profile row doesn't
+          }
+        }
+      } catch (err) {
+        console.error("Auth session error:", err);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     fetchUser();
@@ -44,10 +56,15 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
     if (!supabase) return;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setLoading(true);
       if (session?.user) {
         setUser(session.user);
-        const userProfile = await getUserProfile(session.user.id);
-        setProfile(userProfile);
+        try {
+          const userProfile = await getUserProfile(session.user.id);
+          setProfile(userProfile);
+        } catch (err) {
+          setProfile(null);
+        }
       } else {
         setUser(null);
         setProfile(null);
