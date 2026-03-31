@@ -35,22 +35,27 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         }
 
         const { data: { session } } = await supabase.auth.getSession();
-        
+        setUser(session?.user || null);
+
         if (session?.user) {
-          setUser(session.user);
-          try {
-            const userProfile = await getUserProfile(session.user.id);
-            setProfile(userProfile);
-          } catch (profileErr) {
-            console.error("Profile fetch error:", profileErr);
-            setProfile(null);
+          const { data: profileRow, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profileError) {
+             console.warn("Profile not found for user:", session.user.email);
+             setProfile(null);
+          } else {
+             setProfile(profileRow);
           }
         } else {
-          setUser(null);
           setProfile(null);
         }
       } catch (err) {
-        console.error("Auth session error:", err);
+        console.error('Error fetching user:', err);
+        setProfile(null);
       } finally {
         setLoading(false);
       }
