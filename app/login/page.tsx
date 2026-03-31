@@ -4,9 +4,9 @@ import { useState } from 'react';
 import { createBrowserClient } from '@/lib/supabase/client';
 import { KeyRound, Mail, Lock, ArrowRight, ShieldCheck, Building2, UserCog } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 
-export default function LoginPage() {
+function LoginContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -143,5 +143,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="w-8 h-8 border-4 border-slate-100 border-t-[#1A365D] rounded-full animate-spin"></div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }
