@@ -42,7 +42,7 @@ export default function LoginPage() {
       setError('Credenciais inválidas. Verifique se o usuário foi criado no Supabase Auth.');
       setLoading(false);
     } else {
-      router.push('/dashboard');
+      router.replace('/dashboard');
     }
   };
 

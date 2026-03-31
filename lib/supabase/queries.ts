@@ -14,50 +14,62 @@ const getSupabase = () => {
 
 // Utility to get current user Profile
 export const getUserProfile = async (userId: string) => {
-    const supabase = getSupabase();
-    if (!supabase) return null;
+    try {
+        const supabase = getSupabase();
+        if (!supabase) return null;
 
-    const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-    
-    if (error) throw error;
-    return data;
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', userId)
+            .single();
+        
+        if (error) return null;
+        return data;
+    } catch (e) {
+        return null;
+    }
 };
 
 // Utility to get current user Role
 export const getUserRole = async (userId: string) => {
-    const supabase = getSupabase();
-    if (!supabase) return 'tenant';
+    try {
+        const supabase = getSupabase();
+        if (!supabase) return 'tenant';
 
-    const { data, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .single();
-    
-    if (error) return 'tenant';
-    return data.role as 'tenant' | 'agency' | 'admin';
+        const { data, error } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', userId)
+            .single();
+        
+        if (error) return 'tenant';
+        return data.role as 'tenant' | 'agency' | 'admin';
+    } catch (e) {
+        return 'tenant';
+    }
 };
 
 // Utility to get Property and Contract for a Tenant
 export const getTenantContract = async (tenantId: string) => {
-    const supabase = getSupabase();
-    if (!supabase) return null;
+    try {
+        const supabase = getSupabase();
+        if (!supabase) return null;
 
-    const { data, error } = await supabase
-        .from('contracts')
-        .select(`
-            *,
-            properties (*)
-        `)
-        .eq('tenant_id', tenantId)
-        .single();
+        const { data, error } = await supabase
+            .from('contracts')
+            .select(`
+                *,
+                properties (*)
+            `)
+            .eq('tenant_id', tenantId)
+            .single();
 
-    if (error) throw error;
-    return data;
+        if (error) return null;
+        return data;
+    } catch (e) {
+        return null;
+    }
 };
 
 // Utility to create a vacancy inspection request

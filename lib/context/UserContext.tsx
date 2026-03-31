@@ -40,9 +40,12 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
             const userProfile = await getUserProfile(session.user.id);
             setProfile(userProfile);
           } catch (profileErr) {
-            console.error("Profile fetch error (likely table or row missing):", profileErr);
-            // Non-critical: user exists but profile row doesn't
+            console.error("Profile fetch error:", profileErr);
+            setProfile(null);
           }
+        } else {
+          setUser(null);
+          setProfile(null);
         }
       } catch (err) {
         console.error("Auth session error:", err);
