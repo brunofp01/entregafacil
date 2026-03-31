@@ -17,6 +17,12 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    
+    if (!supabase) {
+      setError('Configuração do servidor incompleta. Verifique as variáveis de ambiente.');
+      setLoading(false);
+      return;
+    }
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
