@@ -67,7 +67,8 @@ export async function middleware(request: NextRequest) {
     const pathname = request.nextUrl.pathname;
 
     // 1. Protection for Login page (if already logged in)
-    if (pathname === '/login' && user) {
+    const isLogoutTransition = request.nextUrl.searchParams.get('logout') === 'true';
+    if (pathname === '/login' && user && !isLogoutTransition) {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
 

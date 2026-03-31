@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { createBrowserClient } from '@/lib/supabase/client';
 import { KeyRound, Mail, Lock, ArrowRight, ShieldCheck, Building2, UserCog } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect } from 'react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -11,7 +12,17 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createBrowserClient();
+
+  useEffect(() => {
+    const isLogout = searchParams.get('logout') === 'true';
+    if (isLogout && supabase) {
+      supabase.auth.signOut().then(() => {
+        // Clean refresh if needed, but the param is enough to stop middleware loop
+      });
+    }
+  }, [searchParams, supabase]);
 
   const testUsers = [
     { label: 'Inquilino', email: 'inquilino@teste.com', role: 'tenant', icon: ShieldCheck },

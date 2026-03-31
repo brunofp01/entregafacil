@@ -81,12 +81,12 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   }, [supabase]);
 
   const signOut = async () => {
-    if (supabase) {
-      await supabase.auth.signOut();
-      setUser(null);
-      setProfile(null);
-      window.location.href = '/login';
-    }
+    // 1. Clear local state
+    setUser(null);
+    setProfile(null);
+    
+    // 2. Call server route to clear cookies and redirect safely
+    window.location.href = '/auth/signout';
   };
 
   return (
