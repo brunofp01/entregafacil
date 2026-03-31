@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 
 export default function Dashboard() {
-  const { user, profile, loading: userLoading, role } = useUser();
+  const { user, profile, loading: userLoading, role, signOut } = useUser();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isVacancyFlowOpen, setIsVacancyFlowOpen] = useState(false);
@@ -79,12 +79,11 @@ export default function Dashboard() {
         </p>
         <button 
           onClick={async () => {
-            const { signOut } = (await import('@/lib/context/UserContext')).useUser();
-            // ... wait, better use the context directly or a simple link
+            await signOut();
           }}
           className="inline-block bg-[#1A365D] text-white px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-xs"
         >
-          <Link href="/login">Voltar ao Login</Link>
+          Sair e Tentar Novamente
         </button>
       </div>
     );
