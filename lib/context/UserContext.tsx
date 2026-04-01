@@ -55,11 +55,17 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
              
              // Auto-recover for 406 or missing profiles
              if (profileError.code === 'PGRST116' || profileError.message.includes('406')) {
+                const email = session.user.email || '';
+                let determinedRole = 'tenant';
+                if (email.includes('admin')) determinedRole = 'admin';
+                else if (email.includes('imobiliaria') || email.includes('agency')) determinedRole = 'agency';
+
                 const newProfile = {
                     id: session.user.id,
-                    full_name: session.user.user_metadata?.full_name || 'Usuário',
-                    role: 'tenant'
+                    full_name: session.user.user_metadata?.full_name || 'Usuário de Teste',
+                    role: determinedRole
                 };
+                
                 await supabase.from('profiles').upsert(newProfile);
                 setProfile(newProfile);
              } else {
