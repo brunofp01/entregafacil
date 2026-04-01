@@ -45,8 +45,20 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
             .single();
 
           if (profileError) {
-             console.warn("Profile not found for user:", session.user.email);
-             setProfile(null);
+             console.warn("Profile fetch error (406 or missing):", profileError.message);
+             
+             // Auto-recover for 406 or missing profiles
+             if (profileError.code === 'PGRST116' || profileError.message.includes('406')) {
+                const newProfile = {
+                    id: session.user.id,
+                    full_name: session.user.user_metadata?.full_name || 'Usuário',
+                    role: 'tenant'
+                };
+                await supabase.from('profiles').upsert(newProfile);
+                setProfile(newProfile);
+             } else {
+                setProfile(null);
+             }
           } else {
              setProfile(profileRow);
           }
