@@ -96,14 +96,19 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        setLoading(true);
         setUser(session?.user || null);
         if (session?.user) {
           const p = await syncProfile(session.user);
           setProfile(p);
         }
+        setLoading(false);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setProfile(null);
+        setLoading(false);
+      } else {
+        setLoading(false);
       }
     });
 
