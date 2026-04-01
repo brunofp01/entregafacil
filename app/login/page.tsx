@@ -65,6 +65,7 @@ function LoginContent() {
     setError('');
     const results = [];
     
+    // Using a more robust approach: Create then wait
     for (const testUser of testUsers) {
       const { data, error: signupError } = await supabase.auth.signUp({
         email: testUser.email,
@@ -74,8 +75,8 @@ function LoginContent() {
         }
       });
       
-      // We upsert the profile even if signup fails (user might already exist)
-      const userId = data.user?.id || (await supabase.from('profiles').select('id').eq('full_name', testUser.label).single()).data?.id;
+      // If signup successful or user already exists, we force the profile record
+      const userId = data.user?.id;
       
       if (userId) {
         await supabase.from('profiles').upsert({
@@ -84,14 +85,16 @@ function LoginContent() {
           role: testUser.role
         });
         results.push(testUser.label);
+      } else if (signupError) {
+        console.error(`Erro ao criar ${testUser.label}:`, signupError);
       }
     }
     
     setLoading(false);
     if (results.length > 0) {
-      alert(`Ambiente Pronto! Usuários configurados: ${results.join(', ')}.`);
+      alert(`Faxina Concluída! Usuários regenerados: ${results.join(', ')}.`);
     } else {
-      setError('Erro ao inicializar. Verifique se o "Confirm Email" está desativado no Supabase.');
+      setError('Ainda houve um problema. Certifique-se de que rodou o Script de Faxina no SQL Editor e desativou o Confirm Email.');
     }
   };
 
