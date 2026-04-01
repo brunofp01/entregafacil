@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { createBrowserClient } from '@/lib/supabase/client';
 import { getUserProfile } from '@/lib/supabase/queries';
 
@@ -26,14 +26,20 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const supabase = createBrowserClient();
 
+  const fetchDone = useRef(false);
+
   useEffect(() => {
     const fetchUser = async () => {
-      try {
-        if (!supabase) {
-          setLoading(false);
-          return;
-        }
+      // Prevent duplicate runs in Strict Mode
+      if (fetchDone.current) return;
+      
+      const supabase = createBrowserClient();
+      if (!supabase) {
+        setLoading(false);
+        return;
+      }
 
+      try {
         const { data: { session } } = await supabase.auth.getSession();
         setUser(session?.user || null);
 
@@ -69,6 +75,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
         console.error('Error fetching user:', err);
         setProfile(null);
       } finally {
+        fetchDone.current = true;
         setLoading(false);
       }
     };
