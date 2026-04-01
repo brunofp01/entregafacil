@@ -30,52 +30,38 @@ export default function Dashboard() {
   const supabase = createBrowserClient();
 
   useEffect(() => {
-    // Turbo 2026: Parallel Data Fetching
-    const initializeDashboard = async () => {
-      if (!userLoading && user) {
-        // 1. Instant Hub Redirection
-        if (role === 'agency') {
-          router.replace('/agency/dashboard');
-          return;
-        }
-        if (role === 'admin') {
-          router.replace('/admin/dashboard');
-          return;
-        }
-
-        // 2. Parallel Fetching for Tenants
-        if (role === 'tenant') {
-          try {
-            const contractPromise = getTenantContract(user.id);
-            // We can add other parallel promises here (e.g. notifications, bills)
-            const [contract] = await Promise.all([contractPromise]);
-            
-            setData({ profile, contract });
-          } catch (error) {
-            console.error("Turbo fetch error:", error);
-          }
-        }
-        setLoading(false);
+    // Turbo 2026: Fast Path Redirection
+    if (!userLoading && user && role) {
+      if (role === 'agency') {
+        router.replace('/agency/dashboard');
+      } else if (role === 'admin') {
+        router.replace('/admin/dashboard');
       }
-    };
+    }
 
-    initializeDashboard();
+    if (!userLoading && user && role === 'tenant') {
+      const fetchData = async () => {
+        try {
+          const contract = await getTenantContract(user.id);
+          setData({ profile, contract });
+        } catch (error) {
+          console.error("Dashboard fetch error:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchData();
+    } else if (!userLoading) {
+      setLoading(false);
+    }
   }, [user, profile, userLoading, role, router]);
 
-  if (userLoading || (user && loading)) {
+  // If loading or syncing, show a light loading state but NOT a full locked screen
+  if (userLoading && !user) {
     return (
-      <div className="max-w-md mx-auto py-12 px-6 space-y-8 animate-pulse">
-        {/* Skeleton Hub */}
-        <div className="w-20 h-20 bg-slate-100 rounded-[2.5rem] mx-auto" />
-        <div className="h-8 w-48 bg-slate-100 rounded-full mx-auto" />
-        <div className="space-y-4 pt-8">
-            <div className="h-40 w-full bg-slate-100 rounded-4xl" />
-            <div className="grid grid-cols-3 gap-3">
-                <div className="h-24 bg-slate-50 rounded-3xl" />
-                <div className="h-24 bg-slate-50 rounded-3xl" />
-                <div className="h-24 bg-slate-50 rounded-3xl" />
-            </div>
-        </div>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4">
+        <div className="w-12 h-12 border-4 border-slate-100 border-t-[#1A365D] rounded-full animate-spin"></div>
+        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Sincronizando...</p>
       </div>
     );
   }
