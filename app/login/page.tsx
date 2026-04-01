@@ -37,22 +37,33 @@ function LoginContent() {
     const finalEmail = customEmail || email;
     const finalPassword = customPassword || password || '123456';
 
+    console.log("Tentando login para:", finalEmail);
+
     if (!supabase) {
       setError('Configuração incompleta no Vercel. Verifique as variáveis de ambiente.');
       setLoading(false);
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email: finalEmail,
-      password: finalPassword,
-    });
+    try {
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: finalEmail,
+        password: finalPassword,
+      });
 
-    if (error) {
-      setError('Credenciais inválidas. Clique em "Inicializar Ambiente" se for o primeiro acesso.');
+      if (authError) {
+        console.error("Erro de Autenticação:", authError.message);
+        setError(`Erro: ${authError.message}. Verifique e-mail e senha.`);
+        setLoading(false);
+      } else if (data.user) {
+        console.log("Login bem-sucedido! Redirecionando...");
+        // Use window.location.href to hard-refresh and avoid middleware cache issues
+        window.location.href = '/dashboard';
+      }
+    } catch (err: any) {
+      console.error("Erro inesperado no Login:", err);
+      setError('Falha na conexão com o servidor. Verifique se a URL do Supabase termina em .co e não .com');
       setLoading(false);
-    } else {
-      router.replace('/dashboard');
     }
   };
 
